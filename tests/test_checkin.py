@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import unittest
@@ -14,6 +15,18 @@ class FakeClient:
     def checkin(self):
         self.calls += 1
         return next(self.results)
+
+
+class CheckinLoggingTests(unittest.TestCase):
+    def test_log_reaches_buffered_output_before_returning(self):
+        with io.TextIOWrapper(io.BytesIO(), encoding='utf-8', newline='\n') as stream, \
+                mock.patch('checkin.sys.stdout', stream), \
+                mock.patch('checkin.beijing_time', return_value='2026-11-06 12:00:00'):
+            checkin.log('offline check')
+            self.assertEqual(
+                stream.buffer.getvalue().decode('utf-8'),
+                '[2026-11-06 12:00:00 北京时间] offline check\n',
+            )
 
 
 class CheckinResultTests(unittest.TestCase):
@@ -286,7 +299,11 @@ class DiagnosticTests(unittest.TestCase):
         cookie = 'gld:sess=private-cookie; gld:sess.sig=private-signature'
         request_get.side_effect = checkin.requests.exceptions.InvalidHeader(cookie)
 
-        self.assertIsNone(checkin.GLaDOS(cookie).req('GET', '/api/user/status'))
+        result = checkin.GLaDOS(cookie).req('GET', '/api/user/status')
+        self.assertTrue(result['request_failed'])
+        self.assertTrue(result['invalid_headers'])
+        self.assertNotIn('private-cookie', str(result))
+        self.assertNotIn('private-signature', str(result))
 
         printed = str(log.call_args_list)
         self.assertIn('InvalidHeader', printed)
