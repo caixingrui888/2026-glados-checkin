@@ -31,7 +31,7 @@ jobs:
   checkin:
     if: github.event_name == 'schedule' || inputs.dispatch_source == 'manual' || inputs.dispatch_source == 'external'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -50,16 +50,16 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Run Checkin
-        run: python -u checkin.py
-        # Three accounts may each retry three domains and wait between attempts.
-        # Leave enough time for all accounts and the final PushPlus notification.
-        timeout-minutes: 20
+        run: python checkin.py
+        timeout-minutes: 8
         env:
           GLADOS_COOKIE: ${{ secrets.GLADOS_COOKIE }}
           # Must match the browser that created the current gld:sess.
-          GLADOS_USER_AGENT: ${{ vars.GLADOS_USER_AGENT }}
+          # Prefer the repository Variable; accept a same-named Secret for compatibility.
+          GLADOS_USER_AGENT: ${{ vars.GLADOS_USER_AGENT || secrets.GLADOS_USER_AGENT }}
           CHECKIN_DIAGNOSTIC_ONLY: ${{ inputs.diagnose_only && 'true' || 'false' }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           PUSH_LEVEL: ${{ vars.PUSH_LEVEL || 'fail_only' }}
